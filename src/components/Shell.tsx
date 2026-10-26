@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import AIMenu, { type MenuItem } from './AIMenu'
 import { Notices, copyText } from './ui'
 import { useStore } from '../store/store'
+import { resetExamples } from '../domain/seed'
 
 export const CHAT_URL = 'https://claude.ai/code/session_018dHjvGR3krMiMy7ua5cpaB'
 export const RESEARCH_URL = (import.meta.env.VITE_RESEARCH_URL as string | undefined) || ''
@@ -29,20 +30,21 @@ export function Backdrop() {
 }
 
 export function Shell({ children }: { children: ReactNode }) {
-  const { data, savedAt, editMode, setEditMode, cloud, personalLink, syncNow, notify } = useStore()
+  const { data, savedAt, editMode, setEditMode, cloud, personalLink, syncNow, notify, mutate } = useStore()
   const navigate = useNavigate()
   const hhmm = (d: Date) => d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
   const status = cloud.key
     ? { syncing: 'מסנכרן...', synced: `בענן ${cloud.at ? hhmm(cloud.at) : ''}`, offline: 'בלי חיבור, שמור במכשיר', conflict: 'התנגשות, ראו הגדרות', error: 'שגיאת ענן', off: '' }[cloud.status]
-    : savedAt ? `נשמר ${hhmm(savedAt)}` : data.demo ? 'נתוני הדגמה' : 'שמור במכשיר'
+    : savedAt ? `נשמר ${hhmm(savedAt)}` : data.demo ? 'עם פרויקטים לדוגמה' : 'שמור במכשיר'
   const items = useMemo<MenuItem[]>(() => [
     { label: 'מצב עריכה', pressed: editMode, onSelect: () => setEditMode(!editMode) },
     { label: 'פרויקט חדש', onSelect: () => navigate('/new') },
+    { label: 'איפוס הפרויקטים לדוגמה', onSelect: () => mutate(resetExamples, 'הפרויקטים לדוגמה אופסו ומוכנים להדגמה') },
     ...(cloud.key ? [
       { label: 'הקישור האישי שלי', onSelect: async () => { if (await copyText(personalLink()!)) notify('הקישור האישי הועתק. פותחים אותו במכשיר אחר כדי לעבוד על אותו משרד.') } },
       { label: 'סנכרון עכשיו', onSelect: () => { syncNow() } },
     ] : [{ label: 'חיבור המשרד לענן', onSelect: () => navigate('/settings#cloud') }]),
-  ], [editMode, setEditMode, navigate, cloud.key, personalLink, notify, syncNow])
+  ], [editMode, setEditMode, navigate, cloud.key, personalLink, notify, syncNow, mutate])
   return (
     <div className={`shell ${editMode ? 'editing' : ''}`}>
       <Backdrop />

@@ -14,6 +14,8 @@ function load(): AppData {
     const raw = localStorage.getItem(KEY)
     if (raw) {
       const d = JSON.parse(raw) as AppData
+      // An untouched demo office from before the teaching examples: swap in the examples.
+      if (d && d.version === 1 && d.demo && !d.projects.some((p) => p.example)) return seed()
       if (d && d.version === 1 && Array.isArray(d.projects)) return d
     }
   } catch { /* fall through to the demo office */ }

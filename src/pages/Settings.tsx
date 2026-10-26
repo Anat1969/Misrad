@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react'
 import { useStore } from '../store/store'
 import type { AppData } from '../domain/types'
-import { seed } from '../domain/seed'
+import { isExample, removeExamples, resetExamples } from '../domain/seed'
+
+const d0 = (d: AppData) => (d.projects.some((p) => !p.example) ? 'הפרויקטים לדוגמה הוסרו' : 'המשרד ריק ומוכן לפרויקט הראשון')
 import { today } from '../domain/dates'
 import { Btn, Field, SectionHead, Sheet, copyText } from '../components/ui'
 
@@ -9,7 +11,7 @@ export default function Settings() {
   const { data, mutate, replace, notify } = useStore()
   const st = data.settings
   const file = useRef<HTMLInputElement>(null)
-  const [confirm, setConfirm] = useState<'clear' | 'demo' | null>(null)
+  const [confirm, setConfirm] = useState<'clear' | null>(null)
   const set = (fn: (d: AppData, v: string) => void) => (v: string) => mutate((d) => fn(d, v), 'נשמר')
   const total = st.stageTemplate.reduce((a, s) => a + (Number(s.pct) || 0), 0)
 
@@ -87,19 +89,26 @@ export default function Settings() {
           <Btn tone="ink" onClick={exportJson}>ייצוא גיבוי</Btn>
           <Btn onClick={() => file.current?.click()}>טעינת גיבוי</Btn>
           <input ref={file} type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importJson(f); e.target.value = '' }} />
-          {data.demo && <Btn tone="bad" onClick={() => setConfirm('clear')}>התחלה נקייה, בלי נתוני הדגמה</Btn>}
-          <Btn tone="quiet" onClick={() => setConfirm('demo')}>טעינת נתוני ההדגמה מחדש</Btn>
         </div>
       </section>
 
-      <Sheet open={!!confirm} onClose={() => setConfirm(null)} title={confirm === 'clear' ? 'התחלה נקייה' : 'נתוני הדגמה'}>
-        <p>{confirm === 'clear' ? 'כל פרויקטי ההדגמה יימחקו. ההגדרות ותבנית השלבים נשארות.' : 'כל הנתונים הנוכחיים יוחלפו בנתוני ההדגמה. כדאי לייצא גיבוי קודם.'}</p>
+      <section className="card" id="examples">
+        <h3>פרויקטים לדוגמה</h3>
+        <p>שלושה פרויקטים להדגמה ולהוראה: שלב שמחכה לאישור הלקוח, גבייה באיחור עם תשלום חלקי, ושלב שאושר ולא חויב. התאריכים נבנים ביחס להיום, ולכן כדאי לאפס אותם לפני כל הדגמה.</p>
+        <p className="small muted">האיפוס וההסרה נוגעים רק בפרויקטים לדוגמה. פרויקטים אמיתיים, הגדרות ומספור הדרישות לא משתנים. כרגע במשרד: {data.projects.filter(isExample).length} פרויקטים לדוגמה.</p>
+        <div className="row wrap">
+          <Btn tone="ink" onClick={() => mutate(resetExamples, 'הפרויקטים לדוגמה אופסו ומוכנים להדגמה')}>{data.projects.some(isExample) ? 'איפוס הפרויקטים לדוגמה' : 'הוספת הפרויקטים לדוגמה'}</Btn>
+          {data.projects.some(isExample) && <Btn tone="bad" onClick={() => setConfirm('clear')}>הסרת הפרויקטים לדוגמה</Btn>}
+        </div>
+      </section>
+
+      <Sheet open={!!confirm} onClose={() => setConfirm(null)} title="הסרת הפרויקטים לדוגמה">
+        <p>שלושת הפרויקטים לדוגמה יוסרו. פרויקטים אמיתיים, הגדרות ותבנית השלבים נשארים. אפשר להחזיר אותם מכאן בכל רגע.</p>
         <div className="row">
           <Btn tone="bad" onClick={() => {
-            if (confirm === 'clear') mutate((d) => { d.projects = []; d.demo = false }, 'המשרד ריק ומוכן לפרויקט הראשון')
-            else replace(seed(), 'נתוני ההדגמה נטענו')
+            mutate((d) => { removeExamples(d); d.demo = false }, d0(data))
             setConfirm(null)
-          }}>אישור</Btn>
+          }}>הסרה</Btn>
           <Btn tone="quiet" onClick={() => setConfirm(null)}>ביטול</Btn>
         </div>
       </Sheet>
@@ -121,7 +130,7 @@ function CloudCard() {
       <div className="sh-row"><h3>סנכרון בענן</h3><span className={`tag ${cloud.key ? (cloud.status === 'synced' ? 't-paid' : cloud.status === 'conflict' || cloud.status === 'error' ? 'lv-high' : 't-wait') : 't-idle'}`} data-testid="cloud-status"><i />{CLOUD_LABEL[cloud.status]}</span></div>
       {!cloud.key ? (<>
         <p>חיבור לענן שומר את המשרד גם מחוץ למכשיר, מאפשר לעבוד מכמה מכשירים, ונותן ללקוח ולקבלן קישור קבוע שמתעדכן לבד. הלקוח מאשר שלב ישירות בקישור, והאישור נרשם כאן ומוציא דרישת תשלום.</p>
-        <p className="small muted">אין הרשמה ואין סיסמה. המשרד מזוהה במפתח פרטי שנשמר במכשיר ובקישור האישי שלך. מי שמחזיק בקישור האישי רואה את כל המשרד, ולכן שומרים אותו כמו סיסמה.{data.demo ? ' כרגע במכשיר יש נתוני הדגמה. כדאי להתחיל נקי (למטה, בנתונים) לפני החיבור.' : ''}</p>
+        <p className="small muted">אין הרשמה ואין סיסמה. המשרד מזוהה במפתח פרטי שנשמר במכשיר ובקישור האישי שלך. מי שמחזיק בקישור האישי רואה את כל המשרד, ולכן שומרים אותו כמו סיסמה.{data.demo ? ' הפרויקטים לדוגמה יעלו לענן יחד עם המשרד. אפשר להסיר אותם (למטה) לפני החיבור או אחריו.' : ''}</p>
         <div className="row"><Btn tone="ink" disabled={busy} onClick={() => run(connect)}>חיבור המשרד לענן</Btn></div>
       </>) : (<>
         {cloud.error && <p className={cloud.status === 'conflict' || cloud.status === 'error' ? 'error' : 'muted'} role="status">{cloud.error}</p>}

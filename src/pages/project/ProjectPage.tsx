@@ -90,6 +90,8 @@ export default function ProjectPage() {
     <div className="project">
       <nav className="crumbs" aria-label="פירורי לחם"><Link to="/office">המשרד</Link><span aria-hidden>/</span><span>{p.name}</span></nav>
 
+      {p.example && <ExampleGuide ex={p.example} />}
+
       <header className="phead">
         <div className="phead-id">
           <span className="mono muted">{p.code} · {p.type} · {p.area} מ"ר</span>
@@ -468,5 +470,23 @@ function ClaudeSheet({ p, data, onClose, notify }: { p: Project; data: AppData; 
         <Btn href="https://claude.ai/new">פתיחת Claude</Btn>
       </div>
     </Sheet>
+  )
+}
+
+/** Teaching examples: what the project demonstrates and what to show, in order. */
+function ExampleGuide({ ex }: { ex: NonNullable<Project['example']> }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <aside className="ex-guide" aria-label="פרויקט לדוגמה: מה מראים כאן">
+      <div className="sh-row">
+        <div><span className="eyebrow">פרויקט לדוגמה · מה מראים כאן</span><strong>{ex.theme}</strong></div>
+        <button className="linkish" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'הסתרה' : 'הצגה'}</button>
+      </div>
+      {open && (<>
+        <p>{ex.story}</p>
+        <ol className="ex-steps">{ex.show.map((x, i) => <li key={i}><span className="mono">{String(i + 1).padStart(2, '0')}</span>{x}</li>)}</ol>
+        <p className="small muted">איפוס לפני הדגמה: כפתור הלוגו, "איפוס הפרויקטים לדוגמה".</p>
+      </>)}
+    </aside>
   )
 }
