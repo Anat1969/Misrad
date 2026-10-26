@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
+import { useLocation, useParams } from 'react-router-dom'
 import { motion, useReducedMotion } from 'framer-motion'
 import { decode, mailLink, waLink, type ClientSnapshot, type ContractorSnapshot } from '../domain/share'
 import { STATE_META, ils } from '../domain/logic'
@@ -13,15 +13,28 @@ const CLIENT_LABEL: Record<StageState, [string, string]> = {
   approved: ['אושר', 'paid'], invoiced: ['אושר', 'paid'], paid: ['אושר', 'paid'],
 }
 import { useStore } from '../store/store'
+import { hebrew, rpc, type PortalSent } from '../cloud/api'
 
-function useSnapshot<T>() {
+type Source<T> = { data?: T; error?: boolean; token?: string; sent: PortalSent[]; refresh: () => void }
+
+/** A portal reads its snapshot from the cloud (/c/TOKEN, always current) or from the link itself (/c#...). */
+function useSnapshot<T>(): Source<T> {
   const { hash } = useLocation()
-  const [state, setState] = useState<{ data?: T; error?: boolean }>({})
+  const { token } = useParams()
+  const [state, setState] = useState<{ data?: T; error?: boolean; sent: PortalSent[] }>({ sent: [] })
+  const [tick, setTick] = useState(0)
+  const refresh = useCallback(() => setTick((t) => t + 1), [])
   useEffect(() => {
-    if (!hash || hash.length < 4) { setState({ error: true }); return }
-    decode<T>(hash).then((data) => setState({ data })).catch(() => setState({ error: true }))
-  }, [hash])
-  return state
+    if (token) {
+      rpc<{ snapshot: T; sent: PortalSent[] }>('msr_portal_get', { p_token: token })
+        .then((r) => setState({ data: r.snapshot, sent: r.sent }))
+        .catch(() => setState({ error: true, sent: [] }))
+      return
+    }
+    if (!hash || hash.length < 4) { setState({ error: true, sent: [] }); return }
+    decode<T>(hash).then((data) => setState({ data, sent: [] })).catch(() => setState({ error: true, sent: [] }))
+  }, [hash, token, tick])
+  return { ...state, token, refresh }
 }
 
 function Broken({ who }: { who: string }) {
@@ -40,7 +53,7 @@ const remember = (key: string, v?: string) => {
 // ---------- client ----------
 
 export function ClientPortal() {
-  const { data: snap, error } = useSnapshot<ClientSnapshot>()
+  const { data: snap, error, token, sent, refresh } = useSnapshot<ClientSnapshot>()
   const reduce = useReducedMotion()
   if (error) return <Broken who="פורטל לקוח" />
   if (!snap) return <PortalShell studio="ARCHI-TACT" title="פורטל לקוח"><p className="muted">טוען את הפרויקט...</p></PortalShell>
@@ -73,7 +86,9 @@ export function ClientPortal() {
       {pending.length > 0 && (
         <section className="section">
           <h2>מחכה לאישור שלכם</h2>
-          {pending.map((s) => <ApproveBox key={s.id} snap={snap} stageId={s.id} />)}
+          {pending.map((s) => token
+            ? <LiveApprove key={s.id} snap={snap} stageId={s.id} token={token} sent={sent.filter((x) => x.stage_id === s.id && !x.applied)} onSent={refresh} />
+            : <ApproveBox key={s.id} snap={snap} stageId={s.id} />)}
         </section>
       )}
 
@@ -88,7 +103,7 @@ export function ClientPortal() {
             <li key={s.id} className={`s-${STATE_META[s.state].tone}`}>
               <span className="mono muted">{String(i + 1).padStart(2, '0')}</span>
               <div><strong>{s.name}</strong>{s.deliverables && <span className="muted">{s.deliverables}</span>}</div>
-              <span className="mono muted">{s.targetDate && s.state !== 'paid' ? `יעד ${fmtDate(s.targetDate)}` : ''}</span>
+              <span className="mono muted">{s.targetDate && ['future', 'active', 'submitted'].includes(s.state) ? `יעד ${fmtDate(s.targetDate)}` : ''}</span>
               <span className={`tag sm t-${CLIENT_LABEL[s.state][1]}`}><i />{CLIENT_LABEL[s.state][0]}</span>
             </li>
           ))}
@@ -187,7 +202,9 @@ function ApproveBox({ snap, stageId }: { snap: ClientSnapshot; stageId: string }
 const PRI = { urgent: 'דחוף', normal: 'רגיל', low: 'נמוך' }
 
 export function ContractorPortal() {
-  const { data: snap, error } = useSnapshot<ContractorSnapshot>()
+  const { data: snap, error, token, sent, refresh } = useSnapshot<ContractorSnapshot>()
+  const { notify } = useStore()
+  const [busy, setBusy] = useState(false)
   const [report, setReport] = useState('')
   const [showDone, setShowDone] = useState(false)
   if (error) return <Broken who="תיק קבלן" />
@@ -245,19 +262,78 @@ export function ContractorPortal() {
         <section className="card">
           <span className="eyebrow">ביקור באתר</span>
           <strong>{fmtDate(snap.meeting.date)} · {snap.meeting.time} · {snap.meeting.place}</strong>
-          {snap.studio.phone && <Btn href={waLink(snap.studio.phone, `מאשר הגעה לביקור ב-${fmtDate(snap.meeting.date)} ${snap.meeting.time}, ${snap.project.name}.`)}>אישור הגעה</Btn>}
+          {token
+            ? sent.some((x) => x.kind === 'attend') ? <p className="ok">אישרת הגעה. הסטודיו עודכן.</p>
+              : <Btn tone="ink" disabled={busy} onClick={async () => { setBusy(true); try { await rpc('msr_portal_respond', { p_token: token, p_stage_id: null, p_kind: 'attend', p_name: snap.project.contractor, p_note: '' }); notify('אישור ההגעה נשלח לסטודיו'); refresh() } catch (e) { notify(hebrew(e), 'bad') } finally { setBusy(false) } }}>אישור הגעה</Btn>
+            : snap.studio.phone && <Btn href={waLink(snap.studio.phone, `מאשר הגעה לביקור ב-${fmtDate(snap.meeting.date)} ${snap.meeting.time}, ${snap.project.name}.`)}>אישור הגעה</Btn>}
         </section>
       )}
 
       <section className="section card">
         <h2>דיווח תקלה או בקשת שינוי</h2>
         <textarea rows={3} value={report} onChange={(e) => setReport(e.target.value)} placeholder="מה קרה, איפה, ומה צריך מהאדריכל" aria-label="תיאור הדיווח" />
+        {token ? (
+          <div className="row wrap">
+            <Btn tone="ink" disabled={!report.trim() || busy} onClick={async () => {
+              setBusy(true)
+              try { await rpc('msr_portal_respond', { p_token: token, p_stage_id: null, p_kind: 'report', p_name: snap.project.contractor, p_note: report }); setReport(''); notify('הדיווח נשלח. הוא יופיע אצל האדריכל כמשימה דחופה.'); refresh() } catch (e) { notify(hebrew(e), 'bad') } finally { setBusy(false) }
+            }}>שליחה לסטודיו</Btn>
+            {snap.studio.phone && <Btn disabled={!report.trim()} href={report.trim() ? waLink(snap.studio.phone, msg) : undefined}>גם בוואטסאפ, עם תמונה</Btn>}
+          </div>
+        ) : (
         <div className="row wrap">
           <Btn tone="ink" disabled={!report.trim() || !snap.studio.phone} href={report.trim() && snap.studio.phone ? waLink(snap.studio.phone, msg) : undefined}>שליחה בוואטסאפ</Btn>
           <Btn disabled={!report.trim() || !snap.studio.email} href={report.trim() && snap.studio.email ? mailLink(snap.studio.email, `דיווח מהאתר: ${snap.project.name}`, msg) : undefined}>שליחה באימייל</Btn>
         </div>
+        )}
+        {token && sent.filter((x) => x.kind === 'report').length > 0 && (
+          <ol className="feed">{sent.filter((x) => x.kind === 'report').map((x, i) => <li key={i}><span className="mono muted">{fmtDate(x.created_at.slice(0, 10))} · {x.applied ? 'התקבל בסטודיו' : 'נשלח'}</span><span>{x.note}</span></li>)}</ol>
+        )}
         <p className="small muted">מומלץ לצרף תמונה בהודעה עצמה.</p>
       </section>
     </PortalShell>
+  )
+}
+
+/** Cloud link: the approval goes straight to the studio and is applied on its next sync. */
+function LiveApprove({ snap, stageId, token, sent, onSent }: { snap: ClientSnapshot; stageId: string; token: string; sent: PortalSent[]; onSent: () => void }) {
+  const s = snap.stages.find((x) => x.id === stageId)!
+  const { notify } = useStore()
+  const [mode, setMode] = useState<'idle' | 'approve' | 'comment'>('idle')
+  const [name, setName] = useState(snap.project.client)
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const done = sent[0]
+  const send = async (kind: 'approve' | 'comment') => {
+    setBusy(true)
+    try {
+      await rpc('msr_portal_respond', { p_token: token, p_stage_id: stageId, p_kind: kind, p_name: name, p_note: kind === 'comment' ? note : '' })
+      notify(kind === 'approve' ? 'האישור נשלח לסטודיו' : 'ההערות נשלחו לסטודיו')
+      onSent()
+    } catch (e) { notify(hebrew(e), 'bad') } finally { setBusy(false) }
+  }
+  return (
+    <article className="approve-box">
+      <div className="sh-row"><strong>{s.name}</strong><span className="mono muted">הוגש {fmtDate(s.submittedAt)}</span></div>
+      {s.deliverables && <p><span className="eyebrow">מה הוגש</span>{s.deliverables}</p>}
+      {done ? (
+        <p className="ok" data-testid="sent-state">{done.kind === 'approve' ? `אישרת את השלב (${done.name}). הסטודיו מקבל את האישור, ודרישת התשלום תופיע כאן.` : 'ההערות נשלחו. השלב חוזר לעבודה בסטודיו.'}</p>
+      ) : mode === 'idle' ? (
+        <div className="row wrap">
+          <Btn tone="ink" onClick={() => setMode('approve')}>מאשר/ת את השלב</Btn>
+          <Btn onClick={() => setMode('comment')}>יש לי הערות</Btn>
+        </div>
+      ) : (
+        <div className="approve-step">
+          <div className="field"><label className="eyebrow" htmlFor={`ln-${stageId}`}>שם המאשר/ת</label><input id={`ln-${stageId}`} value={name} onChange={(e) => setName(e.target.value)} /></div>
+          {mode === 'comment' && <div className="field"><label className="eyebrow" htmlFor={`lc-${stageId}`}>ההערות</label><textarea id={`lc-${stageId}`} rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></div>}
+          <p className="small muted">{mode === 'approve' ? 'האישור נרשם אצל הסטודיו עם השם והתאריך. אחריו יוצאת דרישת התשלום על השלב.' : 'ההערות מגיעות לסטודיו, והשלב חוזר לעבודה.'}</p>
+          <div className="row wrap">
+            <Btn tone="ink" disabled={busy || !name.trim() || (mode === 'comment' && !note.trim())} onClick={() => send(mode)}>{mode === 'approve' ? 'שליחת האישור' : 'שליחת ההערות'}</Btn>
+            <button className="linkish" onClick={() => setMode('idle')}>חזרה</button>
+          </div>
+        </div>
+      )}
+    </article>
   )
 }

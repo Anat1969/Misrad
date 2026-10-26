@@ -354,3 +354,32 @@ export function claudePrompt(p: Project, data: AppData) {
     'פלט: 1) תמונת מצב בשלוש שורות. 2) סיכונים נוספים. 3) שלושה צעדים, ולכל אחד נוסח הודעה מוכן ללקוח או לקבלן.',
   ].join('\n')
 }
+
+// ---------- portal responses that arrive from the cloud ----------
+
+export type PortalResponse = { project_id: string; stage_id: string | null; kind: 'approve' | 'comment' | 'report' | 'attend'; name: string; note: string; created_at: string }
+
+/** Apply one response from a client or contractor portal. Returns a line for the notice, or null when it no longer applies. */
+export function applyResponse(d: AppData, r: PortalResponse): string | null {
+  const p = d.projects.find((x) => x.id === r.project_id)
+  if (!p) return null
+  const s = r.stage_id ? p.stages.find((x) => x.id === r.stage_id) : undefined
+  const on = r.created_at.slice(0, 10)
+  if (r.kind === 'approve') {
+    if (!s || s.state !== 'submitted') return null
+    approveStage(p, s, d.settings, r.name || p.client.name, 'אושר בפורטל הלקוח', on)
+    return `${p.name}: ${r.name || p.client.name} אישר/ה את "${s.name}"`
+  }
+  if (r.kind === 'comment') {
+    if (!s || s.state !== 'submitted') return null
+    returnStage(p, s, r.note)
+    return `${p.name}: הערות לקוח על "${s.name}"`
+  }
+  if (r.kind === 'report') {
+    p.tasks.unshift({ id: uid(), title: `דיווח מהאתר: ${r.note.slice(0, 80)}`, due: today(), done: false, owner: 'studio', priority: 'urgent' })
+    log(p, 'portal', `דיווח מהאתר${r.name ? ` (${r.name})` : ''}: ${r.note}`)
+    return `${p.name}: דיווח חדש מהאתר`
+  }
+  log(p, 'portal', `${r.name || 'הקבלן'} אישר/ה הגעה לביקור האתר`)
+  return `${p.name}: הקבלן אישר הגעה`
+}

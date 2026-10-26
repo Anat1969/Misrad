@@ -1,4 +1,5 @@
-// End-to-end test against `vite preview`. No server: all data lives in localStorage.
+// End-to-end test against `vite preview`. Supabase is mocked in-process: the msr_ functions below
+// follow the same rules as supabase/migrations/20261026200000_msr_cloud.sql (shared across browser contexts).
 // AI_MENU_JS (default: tests/ai-menu.local.js) serves the shared A&I menu locally when the network is out.
 import { chromium } from 'playwright'
 import { spawn } from 'node:child_process'
@@ -9,11 +10,55 @@ const BASE = `http://localhost:${PORT}`
 const MENU = process.env.AI_MENU_JS || 'tests/ai-menu.local.js'
 mkdirSync('tests/shots', { recursive: true })
 
+// ---------- in-memory msr_ backend ----------
+const SUPA = 'https://ktqmwpbzcnzkhjskqisy.supabase.co/rest/v1/rpc/'
+const db = { offices: new Map(), portals: new Map(), responses: [], calls: [] }
+let rid = 0
+const fail = (message, status = 400) => ({ status, body: { message } })
+const office = (key) => db.offices.get(key)
+const RPC = {
+  msr_office_create: ({ p_data }) => { const key = `key-${Math.random().toString(36).slice(2)}-${Date.now()}`; db.offices.set(key, { data: p_data, version: 1 }); return { key, version: 1 } },
+  msr_office_get: ({ p_key }) => { const o = office(p_key); if (!o) return fail('msr: unknown office', 401); return { data: o.data, version: o.version, responses: db.responses.filter((r) => r.office === p_key && !r.applied).map(({ office: _, ...r }) => r) } },
+  msr_office_save: ({ p_key, p_data, p_base_version, p_portals, p_applied }) => {
+    const o = office(p_key); if (!o) return fail('msr: unknown office', 401)
+    if (o.version !== p_base_version) return { ok: false, conflict: true, version: o.version }
+    o.data = p_data; o.version += 1
+    for (const x of p_portals || []) for (const [, pt] of db.portals) if (pt.office === p_key && pt.project_id === x.project_id && pt.kind === x.kind) pt.snapshot = x.snapshot
+    for (const r of db.responses) if ((p_applied || []).includes(r.id)) r.applied = true
+    return { ok: true, version: o.version }
+  },
+  msr_portal_publish: ({ p_key, p_project_id, p_kind, p_snapshot }) => {
+    if (!office(p_key)) return fail('msr: unknown office', 401)
+    for (const [t, pt] of db.portals) if (pt.office === p_key && pt.project_id === p_project_id && pt.kind === p_kind) { pt.snapshot = p_snapshot; return t }
+    const t = `tok${db.portals.size + 1}x`; db.portals.set(t, { office: p_key, project_id: p_project_id, kind: p_kind, snapshot: p_snapshot }); return t
+  },
+  msr_portal_get: ({ p_token }) => { const pt = db.portals.get(p_token); if (!pt) return fail('msr: unknown portal', 401); return { kind: pt.kind, snapshot: pt.snapshot, sent: db.responses.filter((r) => r.token === p_token).map((r) => ({ stage_id: r.stage_id, kind: r.kind, name: r.name, note: r.note, created_at: r.created_at, applied: !!r.applied })) } },
+  msr_portal_respond: ({ p_token, p_stage_id, p_kind, p_name, p_note }) => {
+    const pt = db.portals.get(p_token); if (!pt) return fail('msr: unknown portal', 401)
+    if ((pt.kind === 'client' && !['approve', 'comment'].includes(p_kind)) || (pt.kind === 'contractor' && !['report', 'attend'].includes(p_kind))) return fail('msr: action not allowed here')
+    if (['approve', 'comment'].includes(p_kind)) {
+      if (pt.snapshot.stages.find((x) => x.id === p_stage_id)?.state !== 'submitted') return fail('msr: stage is not waiting for approval')
+      if (db.responses.some((r) => r.token === p_token && r.stage_id === p_stage_id && !r.applied)) return fail('msr: already sent, waiting for the studio')
+    }
+    db.responses.push({ id: `r${++rid}`, office: pt.office, token: p_token, project_id: pt.project_id, stage_id: p_stage_id, kind: p_kind, name: p_name || '', note: p_note || '', created_at: new Date().toISOString(), applied: false })
+    return { ok: true }
+  },
+}
+
 let failures = 0
 const ok = (cond, msg) => { if (cond) console.log(`  ok  ${msg}`); else { failures++; console.log(`  FAIL ${msg}`) } }
 
-async function newPage(browser, { viewport = { width: 1360, height: 900 }, reducedMotion } = {}) {
+async function newPage(browser, { viewport = { width: 1360, height: 900 }, reducedMotion, offline } = {}) {
   const context = await browser.newContext({ viewport, locale: 'he-IL', reducedMotion, permissions: ['clipboard-read', 'clipboard-write'] })
+  await context.route(SUPA + '*', async (route) => {
+    if (offline) return route.abort('internetdisconnected')
+    const fn = route.request().url().slice(SUPA.length)
+    const args = JSON.parse(route.request().postData() || '{}')
+    db.calls.push({ fn, args })
+    const r = RPC[fn] ? RPC[fn](args) : fail('no such function', 404)
+    if (r && r.status && r.body) return route.fulfill({ status: r.status, contentType: 'application/json', body: JSON.stringify(r.body) })
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(r) })
+  })
   if (existsSync(MENU)) await context.route('https://appofapp-gh.vercel.app/ai-menu.js', (r) => r.fulfill({ path: MENU, contentType: 'application/javascript' }))
   await context.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort())
   const page = await context.newPage()
@@ -184,7 +229,7 @@ try {
     ok((await page.getByLabel('קבלן ראשי').inputValue()) === 'אבי בונה', 'edited field saved after reload')
     await openMenu(page)
     await menuItem(page, 'מצב עריכה').click()
-    ok(!(await page.locator('.editband').isVisible()), 'edit mode off')
+    ok(await page.locator('.editband').waitFor({ state: 'detached', timeout: 4000 }).then(() => true, () => false), 'edit mode off')
     await context.close()
   }
 
@@ -223,6 +268,79 @@ try {
     await page.getByText('הקישור לא תקין').waitFor()
     ok(true, 'broken portal link explained')
     await context.close()
+  }
+
+  console.log('cloud: connect, live portal approval, second device, conflict')
+  {
+    const A = await newPage(browser)
+    await A.page.goto(BASE + '/settings')
+    await A.page.getByRole('button', { name: 'חיבור המשרד לענן' }).click()
+    ok(await seen(A.page.getByTestId('cloud-status').filter({ hasText: 'מסונכרן' })), 'office connected and synced')
+    const key = [...db.offices.keys()][0]
+    ok(db.offices.size === 1 && db.offices.get(key).data.projects.length === 5, 'office uploaded with its five projects')
+    ok((await A.page.getByLabel('הקישור האישי שלך').inputValue()).includes(`?office=${key}`), 'personal link carries the office key')
+
+    await A.page.goto(BASE + '/office')
+    await A.page.locator('.prow', { hasText: 'וילה כרמל' }).click()
+    await A.page.getByRole('button', { name: 'קישור ללקוח' }).click()
+    await A.page.waitForFunction(() => document.querySelector('.share-text')?.value.includes('/c/'))
+    const clientUrl = (await A.page.locator('.share-text').inputValue()).match(/https?:\/\/\S+\/c\/\S+/)[0]
+    ok(/\/c\/tok\d+x$/.test(clientUrl), `stable cloud link for the client (${clientUrl})`)
+    await A.page.getByRole('button', { name: 'סגירה' }).click()
+
+    const B = await newPage(browser)
+    await B.page.goto(clientUrl)
+    await B.page.getByRole('heading', { name: 'שלום משפחת לוי' }).waitFor()
+    await B.page.getByRole('button', { name: 'מאשר/ת את השלב' }).click()
+    await B.page.getByRole('button', { name: 'שליחת האישור' }).click()
+    ok(await seen(B.page.getByTestId('sent-state')), 'client approval sent from the portal')
+    ok(db.responses.length === 1 && db.responses[0].kind === 'approve', 'approval stored as a response')
+    await B.page.reload()
+    ok(await seen(B.page.getByTestId('sent-state')), 'portal remembers the approval after reload')
+
+    await openMenu(A.page)
+    await menuItem(A.page, 'סנכרון עכשיו').click()
+    ok(await notice(A.page, 'מהפורטל'), 'studio picks up the approval on sync')
+    ok(await seen(stage(A.page, 'היתר בנייה').locator('.tag', { hasText: 'נשלחה דרישה' })), 'portal approval issued the payment request')
+    ok(db.responses[0].applied, 'response marked applied in the cloud')
+    const portal = [...db.portals.values()].find((x) => x.kind === 'client')
+    ok(portal.snapshot.stages.find((x) => x.name === 'היתר בנייה').state === 'invoiced', 'client portal snapshot republished with the save')
+    await B.page.reload()
+    ok(await seen(B.page.locator('tbody tr', { hasText: 'היתר בנייה' })), 'client now sees the payment request')
+    await B.page.screenshot({ path: 'tests/shots/client-live.png', fullPage: true })
+
+    await A.page.getByRole('button', { name: 'קישור לקבלן' }).click()
+    await A.page.waitForFunction(() => document.querySelector('.share-text')?.value.includes('/k/'))
+    const kUrl = (await A.page.locator('.share-text').inputValue()).match(/https?:\/\/\S+\/k\/\S+/)[0]
+    await A.page.getByRole('button', { name: 'סגירה' }).click()
+    await B.page.goto(kUrl)
+    await B.page.getByLabel('תיאור הדיווח').fill('נזילה בתקרת המרתף')
+    await B.page.getByRole('button', { name: 'שליחה לסטודיו' }).click()
+    ok(await notice(B.page, 'הדיווח נשלח'), 'contractor report sent')
+    await openMenu(A.page)
+    await menuItem(A.page, 'סנכרון עכשיו').click()
+    await A.page.getByRole('tab', { name: 'משימות' }).click()
+    ok(await seen(A.page.locator('.task', { hasText: 'נזילה בתקרת המרתף' })), 'contractor report became an urgent studio task')
+
+    const C = await newPage(browser)
+    await C.page.goto(`${BASE}/office?office=${key}`)
+    await C.page.waitForURL((u) => !u.search.includes('office='))
+    ok(true, 'office key removed from the address bar')
+    await C.page.locator('.prow', { hasText: 'וילה כרמל' }).click()
+    ok(await seen(stage(C.page, 'היתר בנייה').locator('.tag', { hasText: 'נשלחה דרישה' })), 'second device opened the same office')
+
+    db.offices.get(key).version += 1 // someone else saved meanwhile
+    await C.page.getByRole('tab', { name: 'משימות' }).click()
+    await C.page.locator('.task', { hasText: 'אישור יועץ נגישות' }).locator('.box').click()
+    await C.page.goto(BASE + '/settings')
+    ok(await seen(C.page.getByTestId('cloud-status').filter({ hasText: 'התנגשות' })), 'conflict detected, nothing overwritten')
+    await C.page.getByRole('button', { name: 'לקחת את הגרסה מהענן' }).click()
+    ok(await seen(C.page.getByTestId('cloud-status').filter({ hasText: 'מסונכרן' })), 'conflict resolved by taking the cloud copy')
+
+    const D = await newPage(browser, { offline: true })
+    await D.page.goto(`${BASE}/settings?office=${key}`)
+    ok(await seen(D.page.getByTestId('cloud-status').filter({ hasText: 'בלי חיבור' })), 'offline state explained')
+    for (const x of [A, B, C, D]) await x.context.close()
   }
 
   console.log('mobile, installability, reduced motion')

@@ -33,7 +33,9 @@ export default function App() {
       <Suspense fallback={<Loading />}>
         <Routes>
           <Route path="/c" element={<ClientPortal />} />
+          <Route path="/c/:token" element={<ClientPortal />} />
           <Route path="/k" element={<ContractorPortal />} />
+          <Route path="/k/:token" element={<ContractorPortal />} />
           <Route path="*" element={
             <Shell>
               <Suspense fallback={<Loading />}>

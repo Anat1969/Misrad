@@ -2,7 +2,7 @@ import { useMemo, type ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import AIMenu, { type MenuItem } from './AIMenu'
-import { Notices } from './ui'
+import { Notices, copyText } from './ui'
 import { useStore } from '../store/store'
 
 export const CHAT_URL = 'https://claude.ai/code/session_018dHjvGR3krMiMy7ua5cpaB'
@@ -29,13 +29,20 @@ export function Backdrop() {
 }
 
 export function Shell({ children }: { children: ReactNode }) {
-  const { data, savedAt, editMode, setEditMode } = useStore()
+  const { data, savedAt, editMode, setEditMode, cloud, personalLink, syncNow, notify } = useStore()
   const navigate = useNavigate()
-  const status = savedAt ? `נשמר ${savedAt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}` : data.demo ? 'נתוני הדגמה' : 'שמור במכשיר'
+  const hhmm = (d: Date) => d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
+  const status = cloud.key
+    ? { syncing: 'מסנכרן...', synced: `בענן ${cloud.at ? hhmm(cloud.at) : ''}`, offline: 'בלי חיבור, שמור במכשיר', conflict: 'התנגשות, ראו הגדרות', error: 'שגיאת ענן', off: '' }[cloud.status]
+    : savedAt ? `נשמר ${hhmm(savedAt)}` : data.demo ? 'נתוני הדגמה' : 'שמור במכשיר'
   const items = useMemo<MenuItem[]>(() => [
     { label: 'מצב עריכה', pressed: editMode, onSelect: () => setEditMode(!editMode) },
     { label: 'פרויקט חדש', onSelect: () => navigate('/new') },
-  ], [editMode, setEditMode, navigate])
+    ...(cloud.key ? [
+      { label: 'הקישור האישי שלי', onSelect: async () => { if (await copyText(personalLink()!)) notify('הקישור האישי הועתק. פותחים אותו במכשיר אחר כדי לעבוד על אותו משרד.') } },
+      { label: 'סנכרון עכשיו', onSelect: () => { syncNow() } },
+    ] : [{ label: 'חיבור המשרד לענן', onSelect: () => navigate('/settings#cloud') }]),
+  ], [editMode, setEditMode, navigate, cloud.key, personalLink, notify, syncNow])
   return (
     <div className={`shell ${editMode ? 'editing' : ''}`}>
       <Backdrop />
@@ -62,7 +69,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <main className="page" id="main">{children}</main>
       <footer className="foot">
         <span>ARCHI-TACT משרד: מהשלב, דרך אישור הלקוח, אל התשלום.</span>
-        <span className="mono">הנתונים נשמרים במכשיר הזה. גיבוי וייצוא בהגדרות.</span>
+        <span className="mono">שמור במכשיר, ובחיבור לענן גם בענן. גיבוי וחיבור בהגדרות.</span>
       </footer>
       <Notices />
     </div>
