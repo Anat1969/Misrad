@@ -5,6 +5,7 @@ import { clientSnapshot, contractorSnapshot, encode, mailLink, waLink } from '..
 import { today } from '../../domain/dates'
 import { Btn, Sheet, copyText } from '../../components/ui'
 import { useStore } from '../../store/store'
+import { hebrew } from '../../cloud/api'
 
 export async function clientUrl(p: Project, d: AppData) {
   const on = today()
@@ -18,13 +19,21 @@ export async function contractorUrl(p: Project, d: AppData) {
 
 /** Send a portal link: copy, WhatsApp or email, with a ready message. */
 export function ShareSheet({ open, onClose, project, who, stage }: { open: boolean; onClose: () => void; project: Project; who: 'client' | 'contractor'; stage?: Stage }) {
-  const { data, notify, mutate } = useStore()
+  const { data, notify, mutate, cloud, publishPortal } = useStore()
   const [url, setUrl] = useState('')
+  const [err, setErr] = useState('')
+  const live = !!cloud.key
   useEffect(() => {
     if (!open) return
-    setUrl('')
-    ;(who === 'client' ? clientUrl(project, data) : contractorUrl(project, data)).then(setUrl)
-  }, [open, who, project, data])
+    setUrl(''); setErr('')
+    // Connected: a stable link that stays current and takes the client's approval directly.
+    // Not connected: a snapshot carried in the link itself.
+    const make = live
+      ? publishPortal(project.id, who).then((t) => `${location.origin}/${who === 'client' ? 'c' : 'k'}/${t}`)
+      : who === 'client' ? clientUrl(project, data) : contractorUrl(project, data)
+    make.then(setUrl).catch((e) => setErr(hebrew(e)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, who, project.id, live])
   const name = who === 'client' ? project.client.name : project.contractor.name || 'הקבלן'
   const phone = who === 'client' ? project.client.phone : project.contractor.phone
   const email = who === 'client' ? project.client.email : ''
@@ -36,7 +45,10 @@ export function ShareSheet({ open, onClose, project, who, stage }: { open: boole
   const sent = (via: string) => mutate((d) => { const p = d.projects.find((x) => x.id === project.id)!; p.log.unshift({ id: uid(), at: new Date().toISOString(), kind: 'portal', text: `נשלח קישור ${who === 'client' ? 'לקוח' : 'קבלן'} ל${name} (${via})` }) })
   return (
     <Sheet open={open} onClose={onClose} title={who === 'client' ? 'קישור אישי ללקוח' : 'קישור לקבלן'}>
-      <p className="muted">הקישור מכיל תמונת מצב של היום, לקריאה בלבד. אחרי כל שינוי שולחים קישור חדש. שום מידע לא נשמר בשרת.</p>
+      {live
+        ? <p className="muted">קישור קבוע: הוא מתעדכן לבד עם כל שינוי במשרד. {who === 'client' ? 'הלקוח מאשר או מעיר בתוכו, והאישור נרשם כאן ומוציא דרישת תשלום.' : 'דיווח מהאתר מגיע לכאן כמשימה דחופה.'}</p>
+        : <p className="muted">הקישור מכיל תמונת מצב של היום, לקריאה בלבד. אחרי כל שינוי שולחים קישור חדש. לקישור קבוע שמתעדכן לבד: מחברים את המשרד לענן בהגדרות.</p>}
+      {err && <p className="error" role="alert">{err}</p>}
       <label className="eyebrow" htmlFor="share-text">ההודעה</label>
       <textarea id="share-text" className="share-text" readOnly rows={7} value={url ? text : 'מכין קישור...'} />
       <div className="row wrap">

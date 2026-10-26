@@ -100,6 +100,8 @@ export interface Project {
   notes: string
   archived: boolean
   createdAt: string
+  /** Cloud portal tokens, once a link was published. */
+  portals?: { client?: string; contractor?: string }
 }
 
 export interface StageTemplate {

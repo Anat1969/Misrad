@@ -3,7 +3,7 @@ import { useStore } from '../store/store'
 import type { AppData } from '../domain/types'
 import { seed } from '../domain/seed'
 import { today } from '../domain/dates'
-import { Btn, Field, SectionHead, Sheet } from '../components/ui'
+import { Btn, Field, SectionHead, Sheet, copyText } from '../components/ui'
 
 export default function Settings() {
   const { data, mutate, replace, notify } = useStore()
@@ -31,6 +31,8 @@ export default function Settings() {
   return (
     <>
       <SectionHead title="הגדרות" lead="פרטי הסטודיו מופיעים בדרישות התשלום ובקישורים ללקוח. השינויים נשמרים ביציאה מכל שדה." />
+
+      <CloudCard />
 
       <section className="card">
         <h3>הסטודיו</h3>
@@ -102,5 +104,51 @@ export default function Settings() {
         </div>
       </Sheet>
     </>
+  )
+}
+
+const CLOUD_LABEL = { off: 'לא מחובר', syncing: 'מסנכרן', synced: 'מסונכרן', offline: 'בלי חיבור', conflict: 'התנגשות', error: 'שגיאה' }
+
+/** Cloud sync: one office in the cloud, any number of devices, portals that stay current. */
+function CloudCard() {
+  const { cloud, connect, disconnect, syncNow, resolve, personalLink, notify, data } = useStore()
+  const [busy, setBusy] = useState(false)
+  const [ask, setAsk] = useState(false)
+  const run = async (f: () => Promise<void>) => { setBusy(true); try { await f() } finally { setBusy(false) } }
+  const link = personalLink()
+  return (
+    <section className="card deep" id="cloud">
+      <div className="sh-row"><h3>סנכרון בענן</h3><span className={`tag ${cloud.key ? (cloud.status === 'synced' ? 't-paid' : cloud.status === 'conflict' || cloud.status === 'error' ? 'lv-high' : 't-wait') : 't-idle'}`} data-testid="cloud-status"><i />{CLOUD_LABEL[cloud.status]}</span></div>
+      {!cloud.key ? (<>
+        <p>חיבור לענן שומר את המשרד גם מחוץ למכשיר, מאפשר לעבוד מכמה מכשירים, ונותן ללקוח ולקבלן קישור קבוע שמתעדכן לבד. הלקוח מאשר שלב ישירות בקישור, והאישור נרשם כאן ומוציא דרישת תשלום.</p>
+        <p className="small muted">אין הרשמה ואין סיסמה. המשרד מזוהה במפתח פרטי שנשמר במכשיר ובקישור האישי שלך. מי שמחזיק בקישור האישי רואה את כל המשרד, ולכן שומרים אותו כמו סיסמה.{data.demo ? ' כרגע במכשיר יש נתוני הדגמה. כדאי להתחיל נקי (למטה, בנתונים) לפני החיבור.' : ''}</p>
+        <div className="row"><Btn tone="ink" disabled={busy} onClick={() => run(connect)}>חיבור המשרד לענן</Btn></div>
+      </>) : (<>
+        {cloud.error && <p className={cloud.status === 'conflict' || cloud.status === 'error' ? 'error' : 'muted'} role="status">{cloud.error}</p>}
+        {cloud.status === 'conflict' && (
+          <div className="row wrap">
+            <Btn tone="ink" disabled={busy} onClick={() => run(() => resolve('cloud'))}>לקחת את הגרסה מהענן</Btn>
+            <Btn disabled={busy} onClick={() => run(() => resolve('device'))}>לשמור את הגרסה של המכשיר הזה</Btn>
+          </div>
+        )}
+        <dl className="metrics compact">
+          <div><dt>סנכרון אחרון</dt><dd>{cloud.at ? cloud.at.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '—'}</dd></div>
+          <div><dt>גרסה</dt><dd>{cloud.version}</dd></div>
+          <div><dt>שינויים שממתינים</dt><dd>{cloud.dirty ? 'יש' : 'אין'}</dd></div>
+        </dl>
+        <label className="eyebrow" htmlFor="personal-link">הקישור האישי שלך</label>
+        <input id="personal-link" className="mono share-text" dir="ltr" readOnly value={link || ''} onFocus={(e) => e.target.select()} />
+        <p className="small muted">פותחים אותו בטלפון או במחשב אחר, והמכשיר מצטרף לאותו משרד. לא שולחים אותו ללקוחות.</p>
+        <div className="row wrap">
+          <Btn tone="ink" onClick={async () => { if (link && await copyText(link)) notify('הקישור האישי הועתק') }}>העתקת הקישור האישי</Btn>
+          <Btn disabled={busy} onClick={() => run(syncNow)}>סנכרון עכשיו</Btn>
+          <Btn tone="quiet" onClick={() => setAsk(true)}>ניתוק המכשיר</Btn>
+        </div>
+      </>)}
+      <Sheet open={ask} onClose={() => setAsk(false)} title="ניתוק המכשיר מהענן">
+        <p>המכשיר יפסיק לסנכרן. הנתונים נשארים במכשיר, והמשרד בענן נשאר כמו שהוא. אפשר להתחבר שוב עם הקישור האישי. {cloud.dirty ? 'יש שינויים שעוד לא נשלחו, והם יישארו רק במכשיר.' : ''}</p>
+        <div className="row"><Btn tone="bad" onClick={() => { disconnect(); setAsk(false) }}>ניתוק</Btn><Btn tone="quiet" onClick={() => setAsk(false)}>ביטול</Btn></div>
+      </Sheet>
+    </section>
   )
 }
