@@ -100,6 +100,8 @@ export interface Project {
   notes: string
   archived: boolean
   createdAt: string
+  /** Set on the teaching examples: what the project demonstrates and what to show in class. */
+  example?: { theme: string; story: string; show: string[] }
   /** Cloud portal tokens, once a link was published. */
   portals?: { client?: string; contractor?: string }
 }

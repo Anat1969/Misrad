@@ -96,7 +96,7 @@ export default function Office() {
             <motion.li key={p.id} initial={reduce ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
               <Link to={`/project/${p.id}`} className={`prow ${p.archived ? 'archived' : ''}`}>
                 <div className="prow-id">
-                  <span className="mono muted">{p.code}</span>
+                  <span className="mono muted">{p.code}{p.example && <span className="ex-tag">לדוגמה</span>}</span>
                   <strong className="prow-name">{p.name}</strong>
                   <span className="muted">{p.client.name} · {p.type}</span>
                 </div>

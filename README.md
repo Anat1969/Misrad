@@ -13,6 +13,7 @@ npm test           # Playwright מול vite preview (אחרי build)
 ```
 
 ## מבנה
+- פרויקטים לדוגמה: `src/domain/seed.ts` (`examples`, `resetExamples`). איפוס מכפתור הלוגו או מההגדרות, לפני כל הדגמה.
 - `src/domain`: מודל הנתונים (`types.ts`), מכונת המצבים של שלב, סיכונים, תזרים ומדדי אמינות (`logic.ts`), קישורי פורטל (`share.ts`), נתוני הדגמה ותבנית שלבים (`seed.ts`).
 - `src/store/store.tsx`: מקור נתונים אחד, שמירה ב-localStorage בכל שינוי, סנכרון לענן, מצב עריכה והודעות.
 - `src/cloud/api.ts`: קריאות לפונקציות msr_ והודעות שגיאה בעברית.

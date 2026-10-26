@@ -5,7 +5,7 @@ import { useStore } from '../store/store'
 import { officeTotals, risks, reliability, pipeline, ilsShort, approvalCode } from '../domain/logic'
 import { clientSnapshot, contractorSnapshot, encode } from '../domain/share'
 import { today } from '../domain/dates'
-import { BridgeHero, Pipeline } from '../components/viz'
+import { BridgeHero, FeeRail, Pipeline } from '../components/viz'
 import { Btn, Kpi, Level, SectionHead } from '../components/ui'
 
 const STEPS = [
@@ -102,6 +102,25 @@ export default function Home() {
           ))}
         </ol>
       </section>
+
+      {data.projects.some((p) => p.example) && (
+        <section className="section">
+          <SectionHead num="דוגמאות" title="שלושה פרויקטים לדוגמה" lead="כל אחד מספר סיפור אחד על הכסף של משרד אדריכלות. פותחים, ועוקבים אחרי הצעדים שבראש הפרויקט." />
+          <ol className="examples">
+            {data.projects.filter((p) => p.example).map((p, i) => (
+              <motion.li key={p.id} {...rise(i)}>
+                <Link to={`/project/${p.id}`} className="example-card">
+                  <span className="mono muted">{p.code}</span>
+                  <strong>{p.example!.theme}</strong>
+                  <span className="muted">{p.name.replace(/^פרויקט לדוגמה .: /, '')} · {p.client.name}</span>
+                  <FeeRail project={p} vat={data.settings.vatRate} />
+                  <p>{p.example!.story}</p>
+                </Link>
+              </motion.li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       <section className="section">
         <SectionHead num="04" title="שלושה מבטים על אותו פרויקט" lead="הסטודיו מנהל. הלקוח והקבלן מקבלים קישור שמראה רק את מה שנוגע להם, בלי הרשמה." />
