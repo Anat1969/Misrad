@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## הפרויקט
-ARCHI-TACT משרד (ריפו Misrad). ניהול משרד אדריכלות: שלבים, אישורי לקוח, דרישות תשלום ותזרים. גרסה מחודשת של אפליקציית Lovable "ARCHI-TACT Flow" (build-bridge-pay.lovable.app). אפיון: docs/SPEC.md. עובדים לפי הסקיל `.claude/skills/anat-app-builder`.
+ARCHI-TACT משרד (ריפו Misrad, פרויקט Vercel misrad, כתובת https://archi-tact-misrad.vercel.app). ניהול משרד אדריכלות: שלבים, אישורי לקוח, דרישות תשלום ותזרים. גרסה מחודשת של אפליקציית Lovable "ARCHI-TACT Flow" (build-bridge-pay.lovable.app). אפיון: docs/SPEC.md. עובדים לפי הסקיל `.claude/skills/anat-app-builder`.
 
 ## כללים קבועים
 - עברית ו-RTL. בלי אייקונים בממשק, חוץ מאייקון האפליקציה.
@@ -23,3 +23,4 @@ The top bar holds only the app name (links home), content navigation, and ONE lo
 
 ## יומן תיקונים של ענת
 - 2026-10-26: "מה שיש כרגע זה רמה 1, אני רוצה רמה 999": בנייה מחדש לפי הסקיל, מכלי מדומה לכלי עבודה.
+- הכתובת misrad.vercel.app תפוסה על ידי אתר אחר. הדומיין הקבוע: archi-tact-misrad.vercel.app.
