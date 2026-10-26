@@ -1,0 +1,17 @@
+{
+  "name": "ARCHI-TACT משרד",
+  "short_name": "ARCHI-TACT",
+  "description": "ניהול משרד אדריכלות: שלבים, אישורי לקוח, דרישות תשלום ותזרים.",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "/office",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ecebe8",
+  "theme_color": "#16181b",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
