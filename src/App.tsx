@@ -10,10 +10,11 @@ const Cashflow = lazy(() => import('./pages/Cashflow'))
 const Invoice = lazy(() => import('./pages/Invoice'))
 const NewProject = lazy(() => import('./pages/NewProject'))
 const Settings = lazy(() => import('./pages/Settings'))
+const Pitch = lazy(() => import('./pages/Pitch'))
 const ClientPortal = lazy(() => import('./pages/Portals').then((m) => ({ default: m.ClientPortal })))
 const ContractorPortal = lazy(() => import('./pages/Portals').then((m) => ({ default: m.ContractorPortal })))
 
-const TITLES: Record<string, string> = { '/': 'בית', '/office': 'משרד', '/cashflow': 'תזרים', '/settings': 'הגדרות', '/new': 'פרויקט חדש' }
+const TITLES: Record<string, string> = { '/': 'בית', '/office': 'משרד', '/cashflow': 'תזרים', '/settings': 'הגדרות', '/new': 'פרויקט חדש', '/pitch': 'דף מכירה' }
 
 function ScrollTop() {
   const { pathname } = useLocation()
@@ -47,6 +48,7 @@ export default function App() {
                   <Route path="/invoice/:pid/:sid" element={<Invoice />} />
                   <Route path="/new" element={<NewProject />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/pitch" element={<Pitch />} />
                   <Route path="*" element={<Empty title="הדף לא נמצא">אולי הקישור ישן. אפשר לחזור לדף הבית מהשם למעלה.</Empty>} />
                 </Routes>
               </Suspense>

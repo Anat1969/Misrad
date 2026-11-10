@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Hebrew:wght@100;200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#16181b; --paper:#f4f2ee; --gold:#c79a3c; --gold2:#8a6a1f; --wait:#b8860b; --okc:#2f6f86; --paid:#2a8a5a; --bad:#b03a48; --work:#4b5361; --idle:#cbc8c1; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: #0f1012; }
+  body { font-family: 'IBM Plex Sans Hebrew', sans-serif; color: var(--paper); }
+  .mono { font-family: 'IBM Plex Mono', monospace; letter-spacing: .08em; }
+  #stage { position: absolute; inset: 0; background: radial-gradient(1400px 800px at 75% 10%, #2a2d32 0%, #141518 55%, #0c0d0f 100%); overflow: hidden; }
+  .grid { position: absolute; inset: -200px; background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px); background-size: 64px 64px; }
+  .plane { position: absolute; border: 1px solid rgba(255,255,255,.06); background: linear-gradient(135deg, rgba(255,255,255,.05), transparent); transform-style: preserve-3d; }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+  .eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 22px; letter-spacing: .2em; color: rgba(244,242,238,.55); }
+  h1 { font-weight: 200; font-size: 120px; line-height: 1.05; letter-spacing: -.01em; }
+  h2 { font-weight: 200; font-size: 84px; line-height: 1.1; }
+  .gold { color: var(--gold); }
+  /* captions */
+  #cap { position: absolute; left: 0; right: 0; bottom: 64px; display: flex; justify-content: center; }
+  #cap span { font-size: 46px; font-weight: 400; padding: 14px 34px; background: rgba(10,11,13,.72); border-inline-start: 4px solid var(--gold); color: #fff; }
+  /* scene 1: the stage that ended */
+  .plan { position: absolute; left: 160px; top: 170px; width: 760px; height: 560px; }
+  .plan path, .plan rect, .plan line { fill: none; stroke: rgba(244,242,238,.75); stroke-width: 2; }
+  .stagebar { position: absolute; right: 160px; top: 300px; width: 700px; }
+  .bar { height: 54px; background: rgba(255,255,255,.08); position: relative; margin-top: 18px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+  .bar i { position: absolute; inset: 0; right: 0; left: auto; width: 0; background: linear-gradient(180deg, #3aa772, var(--paid)); }
+  .money { position: absolute; right: 160px; top: 520px; width: 700px; }
+  .money .amt { font-size: 140px; font-weight: 200; direction: ltr; text-align: right; }
+  .days { font-size: 40px; margin-top: 8px; color: var(--wait); }
+  /* scene 2: bridge */
+  .bridge { position: absolute; left: 50%; top: 230px; width: 1400px; margin-left: -700px; height: 520px; }
+  /* scene 3: phone and request */
+  .phone { position: absolute; right: 300px; top: 120px; width: 420px; height: 820px; border-radius: 0; background: #f4f2ee; color: var(--ink); box-shadow: 0 60px 120px -30px rgba(0,0,0,.8), 0 0 0 14px #1d1f23, 0 0 0 16px #33363b; padding: 40px 32px; }
+  .phone .top { font-family: 'IBM Plex Mono', monospace; font-size: 15px; color: #6b6f76; letter-spacing: .1em; }
+  .phone h3 { font-weight: 300; font-size: 40px; margin: 18px 0 8px; }
+  .phone .card { margin-top: 26px; padding: 22px; background: linear-gradient(170deg,#fff,#f7f1e3); border: 1px solid var(--gold); }
+  .phone .card b { display: block; font-weight: 500; font-size: 26px; }
+  .phone .card p { font-size: 19px; color: #3a3d42; margin-top: 6px; }
+  .phone .btn { margin-top: 22px; height: 64px; display: grid; place-items: center; background: var(--ink); color: #fff; font-family: 'IBM Plex Mono', monospace; letter-spacing: .1em; font-size: 20px; position: relative; }
+  .phone .ok { margin-top: 22px; font-size: 24px; color: var(--paid); font-weight: 500; }
+  .msg { position: absolute; right: 790px; top: 230px; width: 520px; padding: 26px 30px; background: #1f6b45; color: #fff; font-size: 26px; line-height: 1.45; box-shadow: 0 30px 60px -20px rgba(0,0,0,.7); }
+  .msg small { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 16px; opacity: .75; margin-top: 10px; direction: ltr; text-align: right; }
+  .invoice { position: absolute; left: 230px; top: 200px; width: 680px; padding: 46px 50px; background: #fff; color: var(--ink); box-shadow: 0 60px 120px -30px rgba(0,0,0,.85); }
+  .invoice .no { font-family: 'IBM Plex Mono', monospace; font-size: 64px; }
+  .invoice .line { display: flex; justify-content: space-between; font-size: 28px; padding: 14px 0; border-bottom: 1px solid #ddd; }
+  .invoice .total { font-weight: 600; border-bottom: 2px solid var(--ink); }
+  .stamp { position: absolute; left: 40px; bottom: -34px; background: #fff; padding: 12px 22px; border: 3px solid var(--paid); color: var(--paid); font-size: 30px; font-weight: 600; transform: rotate(-8deg); }
+  /* scene 4: pipeline */
+  .pipe { position: absolute; left: 200px; right: 200px; top: 200px; height: 600px; display: flex; gap: 40px; align-items: flex-end; }
+  .col { flex: 1; display: flex; flex-direction: column; align-items: stretch; height: 100%; justify-content: flex-end; }
+  .col .b { width: 100%; height: 0; box-shadow: inset -12px 0 0 rgba(0,0,0,.18), 0 20px 40px -20px rgba(0,0,0,.6); }
+  .col .l { margin-top: 18px; font-size: 32px; text-align: center; }
+  .col .a { font-size: 26px; text-align: center; color: rgba(244,242,238,.7); direction: ltr; }
+  .base { position: absolute; left: 200px; right: 200px; top: 800px; height: 2px; background: rgba(244,242,238,.7); }
+  /* scene 5 */
+  .chase { position: absolute; right: 200px; top: 220px; width: 720px; display: grid; gap: 18px; }
+  .chase div { padding: 22px 26px; background: rgba(255,255,255,.08); font-size: 28px; position: relative; }
+  .chase div::after { content: ''; position: absolute; right: 20px; left: 20px; top: 50%; height: 3px; background: var(--bad); transform-origin: right; transform: scaleX(var(--x, 0)); }
+  .sketch { position: absolute; left: 180px; top: 200px; width: 760px; height: 600px; }
+  .sketch path, .sketch line, .sketch circle { fill: none; stroke: var(--gold); stroke-width: 2.5; }
+  /* scene 6 */
+  .brand { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+  .brand .mark { width: 180px; height: 180px; margin: 0 auto 40px; }
+  .brand h1 { font-size: 150px; font-weight: 200; letter-spacing: .02em; }
+  .brand h1 .sub { color: var(--gold); font-family: 'IBM Plex Mono', monospace; font-size: 70px; margin-inline-start: 20px; }
+  .brand p { font-size: 56px; font-weight: 200; margin-top: 26px; }
+  .brand .url { margin-top: 40px; font-family: 'IBM Plex Mono', monospace; font-size: 30px; color: rgba(244,242,238,.6); direction: ltr; }
+  .ai { position: absolute; left: 60px; top: 50px; display: flex; gap: 14px; align-items: center; padding: 8px 8px 8px 22px; background: linear-gradient(180deg,#fbfaf8,#ecebe7); color: var(--ink); font-size: 22px; }
+  .ai b { display: grid; place-items: center; width: 54px; height: 54px; background: linear-gradient(160deg,#34383e,#121417); color: #f4f3f0; font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 500; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="grid" id="grid"></div>
+  <div class="plane" id="pl1" style="width:1300px;height:1300px;left:-500px;top:-700px"></div>
+  <div class="plane" id="pl2" style="width:900px;height:900px;right:-400px;top:400px"></div>
+
+  <!-- 1: the stage ended, the money waits -->
+  <section class="scene" id="s1">
+    <svg class="plan" viewBox="0 0 760 560" id="plan">
+      <rect x="20" y="20" width="720" height="520" pathLength="1"/>
+      <line x1="300" y1="20" x2="300" y2="330" pathLength="1"/>
+      <line x1="20" y1="330" x2="520" y2="330" pathLength="1"/>
+      <line x1="520" y1="200" x2="520" y2="540" pathLength="1"/>
+      <line x1="520" y1="200" x2="740" y2="200" pathLength="1"/>
+      <path d="M 300 330 A 90 90 0 0 1 390 240" pathLength="1"/>
+      <path d="M 160 540 A 80 80 0 0 0 80 460" pathLength="1"/>
+      <line x1="610" y1="20" x2="610" y2="200" pathLength="1"/>
+    </svg>
+    <div class="stagebar">
+      <div class="eyebrow">שלב 4 מתוך 7 · היתר בנייה</div>
+      <div class="bar"><i id="fill"></i></div>
+      <div class="eyebrow" id="done" style="margin-top:14px">הוגש ללקוח</div>
+    </div>
+    <div class="money" id="money">
+      <div class="eyebrow">שכר טרחה על השלב</div>
+      <div class="amt">₪66,080</div>
+      <div class="days" id="days">ממתין לאישור · יום 1</div>
+    </div>
+  </section>
+
+  <!-- 2: the bridge -->
+  <section class="scene" id="s2">
+    <svg class="bridge" viewBox="0 0 1400 520">
+      <defs>
+        <linearGradient id="pier" x1="0" x2="1"><stop offset="0" stop-color="#3a3e44"/><stop offset="1" stop-color="#16181b"/></linearGradient>
+        <linearGradient id="deck" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#f6f5f2"/><stop offset="1" stop-color="#bdb9b1"/></linearGradient>
+      </defs>
+      <g id="pierR"><rect x="1120" y="230" width="90" height="230" fill="url(#pier)"/><polygon points="1210,230 1228,214 1228,444 1210,460" fill="#08090a"/><text x="1165" y="510" text-anchor="middle" fill="#f4f2ee" font-size="40" font-weight="300">השלב</text></g>
+      <g id="pierL"><rect x="190" y="230" width="90" height="230" fill="url(#pier)"/><polygon points="280,230 298,214 298,444 280,460" fill="#08090a"/><text x="235" y="510" text-anchor="middle" fill="#f4f2ee" font-size="40" font-weight="300">התשלום</text></g>
+      <rect id="deckR" x="140" y="208" width="1120" height="24" fill="url(#deck)"/>
+      <path id="arch" d="M 200 208 Q 700 -30 1200 208" fill="none" stroke="#c79a3c" stroke-width="4" pathLength="1"/>
+      <g id="hangers" stroke="rgba(199,154,60,.6)" stroke-width="2"></g>
+      <g id="token"><rect x="1150" y="168" width="44" height="36" fill="#c79a3c" stroke="#8a6a1f" stroke-width="2"/></g>
+      <text id="bridgeTitle" x="700" y="40" text-anchor="middle" fill="#f4f2ee" font-size="64" font-weight="200">ARCHI-TACT משרד</text>
+    </svg>
+  </section>
+
+  <!-- 3: link, approval, payment request -->
+  <section class="scene" id="s3">
+    <div class="msg" id="msg">שלום משפחת לוי,<br>הסתיים שלב "היתר בנייה".<br>בקישור אפשר לראות מה הוגש, ולאשר.<small>archi-tact-misrad.vercel.app/c/…</small></div>
+    <div class="phone" id="phone">
+      <div class="top">פורטל לקוח · וילה בכרמל</div>
+      <h3>שלום משפחת לוי</h3>
+      <div style="font-size:19px;color:#5d6168">מחכה לאישור שלכם</div>
+      <div class="card"><b>היתר בנייה</b><p>תיק בקשה להיתר והגשה לוועדה המקומית</p></div>
+      <div class="btn" id="btn">מאשר/ת את השלב</div>
+      <div class="ok" id="ok">אישרתם את השלב. תודה.</div>
+    </div>
+    <div class="invoice" id="invoice">
+      <div class="eyebrow" style="color:#6b6f76">דרישת תשלום</div>
+      <div class="no">1001</div>
+      <div class="line"><span>שלב 4: היתר בנייה</span><span>₪56,000</span></div>
+      <div class="line"><span>מע"מ 18%</span><span>₪10,080</span></div>
+      <div class="line total"><span>סה"כ לתשלום</span><span>₪66,080</span></div>
+      <div class="stamp" id="stamp">יצאה לבד</div>
+    </div>
+  </section>
+
+  <!-- 4: where every shekel stands -->
+  <section class="scene" id="s4">
+    <div class="eyebrow" style="position:absolute;right:200px;top:120px">כל שכר הטרחה של המשרד, עכשיו</div>
+    <div class="pipe">
+      <div class="col" id="c1"><div class="b" style="background:linear-gradient(180deg,#6b7482,#4b5361)"></div><div class="l">בעבודה</div><div class="a">₪89K</div></div>
+      <div class="col" id="c2"><div class="b" style="background:linear-gradient(180deg,#d9a62a,#b8860b)"></div><div class="l">מחכה לאישור</div><div class="a">₪66K</div></div>
+      <div class="col" id="c3"><div class="b" style="background:linear-gradient(180deg,#a8862e,#8a6a1f)"></div><div class="l">נשלחה דרישה</div><div class="a">₪44K</div></div>
+      <div class="col" id="c4"><div class="b" style="background:linear-gradient(180deg,#d05a68,#b03a48)"></div><div class="l">באיחור</div><div class="a">₪24K</div></div>
+      <div class="col" id="c5"><div class="b" style="background:linear-gradient(180deg,#3aa772,#2a8a5a)"></div><div class="l">שולם</div><div class="a">₪283K</div></div>
+    </div>
+    <div class="base"></div>
+  </section>
+
+  <!-- 5: less chasing, more designing -->
+  <section class="scene" id="s5">
+    <div class="chase" id="chase">
+      <div>תזכורת שלישית ללקוח</div>
+      <div>"שלחת כבר את החשבון?"</div>
+      <div>חיפוש במייל: מי אישר מה</div>
+      <div>אקסל תשלומים לא מעודכן</div>
+    </div>
+    <svg class="sketch" viewBox="0 0 760 600" id="sketch">
+      <path d="M 60 520 L 60 260 L 380 80 L 700 260 L 700 520 Z" pathLength="1"/>
+      <line x1="20" y1="520" x2="740" y2="520" pathLength="1"/>
+      <path d="M 300 520 L 300 380 L 460 380 L 460 520" pathLength="1"/>
+      <line x1="140" y1="300" x2="240" y2="300" pathLength="1"/><line x1="520" y1="300" x2="620" y2="300" pathLength="1"/>
+      <circle cx="380" cy="230" r="46" pathLength="1"/>
+    </svg>
+  </section>
+
+  <!-- 6: brand -->
+  <section class="scene" id="s6">
+    <div class="brand"><div>
+      <svg class="mark" viewBox="0 0 512 512" id="mark">
+        <rect width="512" height="512" fill="#1b1d20"/>
+        <path d="M96 300 Q256 120 416 300" fill="none" stroke="#c79a3c" stroke-width="14"/>
+        <rect x="80" y="296" width="352" height="22" fill="#e9e6df"/>
+        <rect x="112" y="318" width="34" height="110" fill="#e9e6df"/><rect x="239" y="318" width="34" height="110" fill="#c9c6bf"/><rect x="366" y="318" width="34" height="110" fill="#e9e6df"/>
+      </svg>
+      <h1>ARCHI-TACT<span class="sub">משרד</span></h1>
+      <p id="tag">מהשלב, <span class="gold">אל התשלום.</span></p>
+      <div class="url">archi-tact-misrad.vercel.app</div>
+    </div></div>
+  </section>
+
+  <div class="ai"><span>אד׳ ענת שטיבלמן</span><b>A&amp;I</b></div>
+  <div id="cap"><span id="capt"></span></div>
+</div>
+<script>
+const CAPS = [
+  [0.1, 'כל אדריכל מכיר את הרגע הזה.'],
+  [2.2, 'השלב הסתיים, התוכניות אצל הלקוח,'],
+  [4.8, 'והכסף? מחכה.'],
+  [7.3, 'ARCHI-TACT משרד בונה גשר על הפער.'],
+  [9.8, 'כל שלב מוגש ללקוח בקישור אישי.'],
+  [12.3, 'הלקוח מאשר בלחיצה, ודרישת התשלום יוצאת לבד.'],
+  [15.8, 'ובכל רגע רואים איפה כל שקל עומד:'],
+  [18.1, 'בעבודה, מחכה לאישור, או באיחור.'],
+  [21.0, 'פחות רדיפה אחרי תשלומים.'],
+  [23.0, 'יותר זמן לתכנן.'],
+  [24.7, 'ARCHI-TACT משרד. מהשלב, אל התשלום.'],
+  [28.6, ''],
+]
+const $ = (id) => document.getElementById(id)
+const clamp = (x) => Math.max(0, Math.min(1, x))
+const seg = (t, a, b) => clamp((t - a) / (b - a))
+const ease = (x) => 1 - Math.pow(1 - x, 3)
+const inout = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2
+// Scene visibility with a short cross-fade.
+const SCENES = [['s1', 0, 7.2], ['s2', 7.1, 9.8], ['s3', 9.7, 15.8], ['s4', 15.7, 20.9], ['s5', 20.8, 24.6], ['s6', 24.5, 31]]
+const hangers = $('hangers')
+for (let i = 0; i < 15; i++) {
+  const x = 260 + i * 63, u = (x - 200) / 1000, y = (1 - u) * (1 - u) * 208 + 2 * (1 - u) * u * -30 + u * u * 208
+  const l = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+  l.setAttribute('x1', x); l.setAttribute('x2', x); l.setAttribute('y1', y); l.setAttribute('y2', 208)
+  hangers.appendChild(l)
+}
+const draw = (svg, p) => svg.querySelectorAll('[pathLength]').forEach((el, i, all) => {
+  const k = clamp(p * all.length - i)
+  el.style.strokeDasharray = 1; el.style.strokeDashoffset = 1 - k
+})
+window.render = (t) => {
+  $('grid').style.transform = `translate(${-t * 6}px, ${-t * 3}px)`
+  $('pl1').style.transform = `rotateX(62deg) rotateZ(38deg) translateY(${-t * 8}px)`
+  $('pl2').style.transform = `rotateX(62deg) rotateZ(38deg) translateY(${t * 6}px)`
+  for (const [id, a, b] of SCENES) {
+    const v = Math.min(seg(t, a, a + .45), 1 - seg(t, b - .45, b))
+    $(id).style.opacity = v
+    $(id).style.transform = `translateY(${(1 - ease(seg(t, a, a + .6))) * 30}px)`
+  }
+  // 1
+  draw($('plan'), ease(seg(t, .1, 2.2)))
+  $('fill').style.width = `${ease(seg(t, 2.2, 3.4)) * 100}%`
+  $('done').style.opacity = seg(t, 3.2, 3.6)
+  $('money').style.opacity = seg(t, 4.6, 5.2)
+  const day = Math.max(1, Math.min(9, Math.round(1 + seg(t, 5.0, 6.6) * 8)))
+  $('days').textContent = `ממתין לאישור · יום ${day}`
+  $('days').style.opacity = t > 6.3 ? (0.55 + 0.45 * Math.abs(Math.sin((t - 6.3) * 5))) : 1
+  // 2
+  const bt = seg(t, 7.2, 8.6)
+  $('pierR').style.opacity = seg(t, 7.2, 7.6); $('pierL').style.opacity = seg(t, 7.4, 7.8)
+  $('deckR').setAttribute('width', 1120 * ease(bt)); $('deckR').setAttribute('x', 140 + 1120 * (1 - ease(bt)))
+  $('arch').style.strokeDasharray = 1; $('arch').style.strokeDashoffset = 1 - ease(seg(t, 8.0, 9.0))
+  hangers.style.opacity = seg(t, 8.6, 9.1)
+  $('token').setAttribute('transform', `translate(${-920 * inout(seg(t, 8.4, 9.6))} 0)`)
+  $('bridgeTitle').style.opacity = seg(t, 7.4, 8.0)
+  // 3
+  $('msg').style.opacity = seg(t, 9.9, 10.4); $('msg').style.transform = `translateX(${-60 * (1 - ease(seg(t, 9.9, 10.5)))}px)`
+  $('phone').style.transform = `translateY(${(1 - ease(seg(t, 10.6, 11.4))) * 120}px)`; $('phone').style.opacity = seg(t, 10.6, 11.1)
+  const press = seg(t, 12.7, 12.9) - seg(t, 12.9, 13.1)
+  $('btn').style.transform = `scale(${1 - press * .05})`; $('btn').style.background = t > 12.9 ? '#2a8a5a' : '#16181b'
+  $('btn').textContent = t > 12.9 ? 'אושר' : 'מאשר/ת את השלב'
+  $('ok').style.opacity = seg(t, 13.0, 13.4)
+  $('msg').style.opacity = Math.min(+$('msg').style.opacity, 1 - seg(t, 13.4, 13.8))
+  $('invoice').style.opacity = seg(t, 13.9, 14.3); $('invoice').style.transform = `translateX(${-120 * (1 - ease(seg(t, 13.9, 14.7)))}px) rotate(${-2 + 2 * ease(seg(t, 13.9, 14.7))}deg)`
+  $('stamp').style.opacity = seg(t, 14.9, 15.1); $('stamp').style.transform = `rotate(-8deg) scale(${1.6 - .6 * ease(seg(t, 14.9, 15.2))})`
+  // 4
+  const H = { c1: .31, c2: .23, c3: .16, c4: .09, c5: 1 }
+  const at = { c1: 16.0, c2: 16.2, c3: 16.4, c4: 16.6, c5: 16.8 }
+  for (const k in H) {
+    $(k).querySelector('.b').style.height = `${ease(seg(t, at[k], at[k] + .9)) * H[k] * 520}px`
+    const active = t < 18.0 ? null : t < 18.9 ? 'c1' : t < 20.0 ? 'c2' : 'c4'
+    $(k).style.opacity = !active || active === k ? 1 : .35
+    $(k).style.transform = `translateY(${active === k ? -24 : 0}px)`
+  }
+  // 5
+  $('chase').querySelectorAll('div').forEach((d, i) => {
+    d.style.opacity = seg(t, 21.0 + i * .15, 21.3 + i * .15) * (1 - .6 * seg(t, 23.0, 23.6))
+    d.style.setProperty('--x', ease(seg(t, 21.8 + i * .2, 22.2 + i * .2)))
+  })
+  draw($('sketch'), ease(seg(t, 22.9, 24.4)))
+  // 6
+  $('mark').style.transform = `scale(${.8 + .2 * ease(seg(t, 24.6, 25.4))})`
+  $('tag').style.opacity = seg(t, 26.1, 26.6)
+  // captions
+  let c = ''
+  for (const [s, x] of CAPS) if (t >= s) c = x
+  $('capt').textContent = c
+  $('cap').style.opacity = c ? 1 : 0
+}
+window.render(0)
+</script>
+</body>
+</html>

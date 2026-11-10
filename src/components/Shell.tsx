@@ -39,6 +39,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const items = useMemo<MenuItem[]>(() => [
     { label: 'מצב עריכה', pressed: editMode, onSelect: () => setEditMode(!editMode) },
     { label: 'פרויקט חדש', onSelect: () => navigate('/new') },
+    { label: 'דף המכירה', onSelect: () => navigate('/pitch') },
     { label: 'איפוס הפרויקטים לדוגמה', onSelect: () => mutate(resetExamples, 'הפרויקטים לדוגמה אופסו ומוכנים להדגמה') },
     ...(cloud.key ? [
       { label: 'הקישור האישי שלי', onSelect: async () => { if (await copyText(personalLink()!)) notify('הקישור האישי הועתק. פותחים אותו במכשיר אחר כדי לעבוד על אותו משרד.') } },
