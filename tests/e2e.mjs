@@ -91,7 +91,21 @@ try {
     ok(await page.locator('.topbar-inner ai-menu .logo').isVisible(), 'A&I logo button in the top bar')
     ok((await page.locator('.kpi').count()) === 4, 'four live KPIs on the home page')
     ok(await page.locator('.risk').count() > 0, 'risks computed from data')
-    ok(await page.locator('svg.bridge').isVisible(), 'bridge visual renders')
+    ok(await page.locator('.film video').isVisible(), 'opening film on the home page')
+    await page.waitForFunction(() => { const v = document.querySelector('.film video'); return v && v.readyState >= 1 })
+    ok(Math.round(await page.locator('.film video').evaluate((v) => v.duration)) === 30, 'film is 30 seconds long')
+    await page.getByTestId('film-sound').click()
+    ok(await page.locator('.film video').evaluate((v) => !v.muted && v.currentTime < 2), 'sound button restarts the film with sound')
+    ok((await page.locator('.pain').count()) === 3 && (await page.locator('.outcome').count()) === 4, 'problem and outcomes sections')
+    await page.getByRole('link', { name: 'דף המכירה' }).first().click()
+    await page.waitForURL(BASE + '/pitch')
+    ok(await seen(page.locator('.pitch h1')), 'sales page opens')
+    ok((await page.locator('.pitch .example-card').count()) === 3, 'sales page tells the three example stories')
+    await page.emulateMedia({ media: 'print' })
+    ok(!(await page.locator('.topbar').isVisible()), 'print hides the app chrome')
+    await page.emulateMedia({ media: 'screen' })
+    await page.screenshot({ path: 'tests/shots/pitch.png', fullPage: true })
+    await page.goto(BASE + '/')
     for (const [name, path] of [['משרד', '/office'], ['תזרים', '/cashflow'], ['הגדרות', '/settings']]) {
       await page.locator('.navlink', { hasText: name }).click()
       await page.waitForURL(BASE + path)
@@ -378,7 +392,7 @@ try {
   console.log('mobile, installability, reduced motion')
   {
     const { page, context, errors } = await newPage(browser, { viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' })
-    for (const path of ['/', '/office', '/cashflow', '/settings', '/new']) {
+    for (const path of ['/', '/office', '/cashflow', '/settings', '/new', '/pitch']) {
       await page.goto(BASE + path)
       await page.waitForTimeout(400)
       await noHScroll(page, `mobile ${path}`)

@@ -5,15 +5,10 @@ import { useStore } from '../store/store'
 import { officeTotals, risks, reliability, pipeline, ilsShort, approvalCode } from '../domain/logic'
 import { clientSnapshot, contractorSnapshot, encode } from '../domain/share'
 import { today } from '../domain/dates'
-import { BridgeHero, FeeRail, Pipeline } from '../components/viz'
+import { FeeRail, Pipeline } from '../components/viz'
+import IntroFilm from '../components/IntroFilm'
+import { CONTACT, OUTCOMES, PAINS, PILOT, PITCH, STEPS } from '../content/pitch'
 import { Btn, Kpi, Level, SectionHead } from '../components/ui'
-
-const STEPS = [
-  { t: 'שכר טרחה לפי שלבים', d: 'כל פרויקט נפתח מתבנית השלבים של הסטודיו. כל שלב מקבל אחוז משכר הטרחה ותוצרים מוגדרים. הסכום של כל שלב מחושב לבד, כולל מע"מ.' },
-  { t: 'הגשה ואישור בקישור', d: 'בסיום שלב שולחים ללקוח קישור אישי. הוא רואה מה הוגש, מאשר או מחזיר עם הערות. האישור חוזר לסטודיו עם קוד ביקורת.' },
-  { t: 'דרישת תשלום יוצאת לבד', d: 'רישום האישור מוציא דרישת תשלום ממוספרת עם מועד פירעון, ופותח את השלב הבא. בלי לזכור, בלי לבקש.' },
-  { t: 'גבייה שנמדדת', d: 'כל תשלום נרשם מול השלב. המערכת מחשבת איחורים, תזרים צפוי, וכמה זמן לוקח ללקוחות לאשר ולשלם.' },
-]
 
 export default function Home() {
   const { data } = useStore()
@@ -38,22 +33,28 @@ export default function Home() {
 
   return (
     <>
-      <section className="hero home-hero">
-        <div className="hero-text">
-          <motion.span className="eyebrow" {...rise(0)}>ניהול משרד אדריכלות · שלבים, אישורים ותשלומים</motion.span>
-          <motion.h1 {...rise(1)}>מהשלב אל התשלום, <span className="inkt">בלי לרדוף</span> אחרי אף אחד.</motion.h1>
-          <motion.p className="lead" {...rise(2)}>
-            שכר הטרחה של אדריכל נתקע בדרך כלל באותו מקום: בין סיום העבודה לבין אישור הלקוח. הכלי בונה גשר על הפער הזה.
-            כל שלב מוגש בקישור, האישור מוציא דרישת תשלום, וכל שקל במשרד נראה במקום אחד.
-          </motion.p>
-          <motion.div className="hero-cta" {...rise(3)}>
-            <Btn tone="ink" size="lg" to="/office">כניסה למשרד</Btn>
-            <Btn size="lg" to="/new">פרויקט חדש</Btn>
-          </motion.div>
-        </div>
-        <motion.div className="hero-visual" initial={reduce ? false : { opacity: 0, rotateX: 18 }} animate={{ opacity: 1, rotateX: 0 }} transition={{ duration: 1 }}>
-          <BridgeHero />
+      <section className="opening">
+        <motion.span className="eyebrow" {...rise(0)}>{PITCH.eyebrow}</motion.span>
+        <motion.h1 {...rise(1)}>מהשלב אל התשלום, <span className="inkt">בלי לרדוף</span> אחרי אף אחד.</motion.h1>
+        <motion.p className="lead" {...rise(2)}>{PITCH.lead}</motion.p>
+        <motion.div className="hero-cta" {...rise(3)}>
+          <Btn tone="ink" size="lg" to="/office">כניסה למשרד</Btn>
+          <Btn size="lg" to="/pitch">דף המכירה</Btn>
         </motion.div>
+      </section>
+
+      <motion.section className="film-wrap" initial={reduce ? false : { opacity: 0, y: 30, rotateX: 8 }} animate={{ opacity: 1, y: 0, rotateX: 0 }} transition={{ delay: 0.3, duration: 0.9 }}>
+        <IntroFilm />
+        <p className="vision">{PITCH.vision}</p>
+      </motion.section>
+
+      <section className="section">
+        <SectionHead num="הבעיה" title="איפה שכר הטרחה נתקע" />
+        <ol className="pains">
+          {PAINS.map((x, i) => (
+            <motion.li key={x.t} className="pain" {...rise(i)}><span className="mono">{String(i + 1).padStart(2, '0')}</span><strong>{x.t}</strong><p>{x.d}</p></motion.li>
+          ))}
+        </ol>
       </section>
 
       <section className="kpis" aria-label="מצב המשרד עכשיו">
@@ -128,6 +129,27 @@ export default function Home() {
           <div className="role dark"><span className="eyebrow">הסטודיו</span><strong>תמונה מלאה</strong><p>שלבים, שכר טרחה, דרישות תשלום, תזרים, משימות, צוות ומסמכים. כל עריכה נשמרת מיד.</p><Btn tone="gold" to="/office">למשרד</Btn></div>
           <div className="role"><span className="eyebrow">הלקוח</span><strong>מה הוגש ומה מחכה לו</strong><p>ציר השלבים, התוצרים לאישור, דרישות התשלום והעדכונים. אישור בלחיצה, הערות במשפט.</p>{links && <Btn to={links.c}>הפורטל כפי שהלקוח רואה</Btn>}</div>
           <div className="role"><span className="eyebrow">הקבלן</span><strong>מה לבנות, לפי איזו תוכנית</strong><p>משימות באתר, רק התוכניות בתוקף, ביקור האתר הבא, ודיווח תקלה שמגיע ישר לסטודיו.</p>{links && <Btn to={links.k}>הפורטל כפי שהקבלן רואה</Btn>}</div>
+        </div>
+      </section>
+
+      <section className="section">
+        <SectionHead num="מה משתנה" title="מה משרד מרוויח" lead="בלי הבטחות במספרים: הכלי מודד את המשרד עצמו, לפני ואחרי." />
+        <div className="outcomes">
+          {OUTCOMES.map((x, i) => <motion.div key={x.t} className="outcome" {...rise(i)}><strong>{x.t}</strong><p>{x.d}</p></motion.div>)}
+        </div>
+      </section>
+
+      <section className="section pilot">
+        <div>
+          <span className="eyebrow">{PILOT.cta}</span>
+          <h2>{PILOT.title}</h2>
+          <ol className="plain">{PILOT.points.map((x) => <li key={x}>{x}</li>)}</ol>
+        </div>
+        <div className="pilot-cta">
+          {CONTACT.whatsapp && <Btn tone="gold" size="lg" href={`https://wa.me/${CONTACT.whatsapp}?text=${encodeURIComponent('שלום, אשמח לשמוע על פיילוט ARCHI-TACT משרד')}`}>הצטרפות לפיילוט</Btn>}
+          {CONTACT.email && <Btn size="lg" href={`mailto:${CONTACT.email}?subject=${encodeURIComponent('פיילוט ARCHI-TACT משרד')}`}>פנייה באימייל</Btn>}
+          {!CONTACT.whatsapp && !CONTACT.email && <Btn tone="gold" size="lg" to="/office">לנסות עכשיו עם הפרויקטים לדוגמה</Btn>}
+          <Btn size="lg" to="/pitch">דף המכירה להדפסה</Btn>
         </div>
       </section>
 
